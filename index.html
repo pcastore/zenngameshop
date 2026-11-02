@@ -66,7 +66,7 @@
                 </div>
                 <div>
                     <span class="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-500 text-white">Direct Image Save Ready (1024 x 1024 px)</span>
-                    <h2 class="font-bold text-slate-900 text-base mt-1">သင်ရွေးချယ်ထားသော Hexa-Cube PCA Icon ကို အောက်ပါပုံပေါ် ဖိနှိပ်ပြီး (Long Press) တိုက်ရိုက် Save နိုင်ပါသည်</h2>
+                    <h2 class="font-bold text-slate-900 text-base mt-1">သင်ရွေးချယ်ထားသော PCA Icon ကို အောက်ပါပုံပေါ် ဖိနှိပ်ပြီး (Long Press) တိုက်ရိုက် Save နိုင်ပါသည်</h2>
                     <p class="text-xs text-slate-600 mt-0.5">Download ခလုတ်နှိပ်မရပါက ညာဘက်ရှိ ပုံကို ၂ စက္ကန့်ခန့် ဖိထားပြီး <b>"Save Image" / "Download Image"</b> ကို နှိပ်ပါ။</p>
                 </div>
             </div>
@@ -78,6 +78,13 @@
     </div>
 
     <main class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <!-- Left Column: Live Preview -->
+            <div class="lg:col-span-7 flex flex-col">
+            <div class="glass-panel rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col items-center">
+                <h2 id="active-design-title" class="font-bold text-slate-800 text-sm mb-4 text-center"></h2>
+                <div id="active-svg-holder" class="w-72 h-72 sm:w-96 sm:h-96 icon-shadow rounded-[15%]"></div>
+            </div>
+
             <!-- Controls Bar -->
             <div class="w-full mt-4 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
                 
@@ -493,6 +500,22 @@
                 </g>`;
             }
 
+            if (designId >= 11) {
+                const g = (n) => `url(#grad${n}_${designId})`;
+                const letters = `
+                    <path d="M 155 320 L 155 160 L 225 160 A 48 48 0 0 1 225 256 L 155 256" fill="none" stroke="${g(1)}" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" filter="url(#glassDrop)"/>
+                    <path d="M 290 170 A 65 65 0 1 0 290 310" fill="none" stroke="${g(2)}" stroke-width="28" stroke-linecap="round" filter="url(#glassDrop)"/>
+                    <path d="M 305 325 L 355 160 L 405 325" fill="none" stroke="${g(3)}" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" filter="url(#glassDrop)"/>
+                    <path d="M 325 270 L 385 270" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" opacity="0.9"/>`;
+                const bodies = {
+                    11: `<path d="M 256 240 C 256 130 120 130 120 240 C 120 350 256 350 256 240 C 256 130 392 130 392 240 C 392 350 256 350 256 240 Z" fill="none" stroke="${g(2)}" stroke-width="12" opacity="0.55"/>` + letters,
+                    12: `<path d="M 165 128 L 150 70 L 205 100 L 256 62 L 307 100 L 362 70 L 347 128 Z" fill="${g(3)}" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" filter="url(#glassDrop)"/><circle cx="256" cy="62" r="9" fill="#ffffff"/>` + letters,
+                    13: `<circle cx="256" cy="240" r="130" fill="${g(2)}" opacity="0.14" stroke="${g(2)}" stroke-width="5"/><circle cx="256" cy="240" r="100" fill="none" stroke="${g(1)}" stroke-width="3" stroke-dasharray="10 8" opacity="0.7"/>` + letters,
+                    14: `<path d="M 236 240 a 20 20 0 0 1 40 0 a 40 40 0 0 1 -80 0 a 60 60 0 0 1 120 0 a 80 80 0 0 1 -160 0 a 100 100 0 0 1 200 0" fill="none" stroke="${g(2)}" stroke-width="7" stroke-linecap="round" opacity="0.7"/>` + letters
+                };
+                innerArtwork = `<g transform="${logoTransform}" transform-origin="256 256">${bodies[designId]}</g>`;
+            }
+
             const textBlock = withText ? `
                 <!-- Typography -->
                 <g transform="translate(256, 422)" text-anchor="middle">
@@ -562,46 +585,52 @@
             updateRealPNGImage(mainSVG);
         }
 
+        let exportToken = 0;
+        let lastBlobUrl = null;
+
+        function applySaveImage(url, isPng) {
+            const directImg = document.getElementById('direct-save-img');
+            const modalImg = document.getElementById('modal-save-img');
+            const dlLink = document.getElementById('direct-dl-link');
+            if (directImg) directImg.src = url;
+            if (modalImg) modalImg.src = url;
+            if (dlLink) {
+                dlLink.href = url;
+                dlLink.download = `PCA-Game-Store-Icon-${currentDesign}-1024px.${isPng ? 'png' : 'svg'}`;
+            }
+        }
+
         function updateRealPNGImage(svgText) {
+            const token = ++exportToken;
             const canvas = document.getElementById('export-canvas');
             const ctx = canvas.getContext('2d');
-            
-            // Clean up old canvas drawings and set white background for solid export
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // The preview SVG uses 100% size; give the export copy a real 1024px size
+            const sized = svgText.replace('width="100%" height="100%"', 'width="1024" height="1024"');
+            const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sized);
+
+            // Show the vector image immediately so something is always visible
+            applySaveImage(svgUrl, false);
 
             const img = new Image();
-            img.crossOrigin = "anonymous";
-            
-            // Encode SVG safely for browser image loading
-            const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
-
             img.onload = function () {
+                if (token !== exportToken) return; // a newer render replaced this one
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, 1024, 1024);
-                try {
-                    const pngDataUrl = canvas.toDataURL('image/png');
-                    const directImg = document.getElementById('direct-save-img');
-                    const modalImg = document.getElementById('modal-save-img');
-                    const dlLink = document.getElementById('direct-dl-link');
-                    if (directImg) directImg.src = pngDataUrl;
-                    if (modalImg) modalImg.src = pngDataUrl;
-                    if (dlLink) {
-                        dlLink.href = pngDataUrl;
-                        dlLink.download = `PCA-Game-Store-Icon-${currentDesign}-1024px.png`;
-                    }
-                } catch (e) {
-                    console.error("Canvas export error:", e);
-                }
+                canvas.toBlob(function (blob) {
+                    if (!blob || token !== exportToken) return;
+                    const url = URL.createObjectURL(blob);
+                    if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+                    lastBlobUrl = url;
+                    applySaveImage(url, true);
+                }, 'image/png');
             };
-            
-            img.onerror = function() {
-                console.error("Failed to load SVG into image for canvas rendering.");
+            img.onerror = function () {
+                console.error('Failed to load SVG into image for canvas rendering.');
             };
-
-            img.src = svgBase64;
+            img.src = svgUrl;
         }
 
         function openSaveModal() {
